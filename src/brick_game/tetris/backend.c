@@ -3,12 +3,12 @@
 // void creating_shape() {}
 FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   static FSM game_state = GAME_START;
+
   switch (game_state) {
     case GAME_START:
-      empty_matrix(CurrentState->field);
-      prepare_next_figure(CurrentState);
       CurrentState->level = 0;
       CurrentState->score = 0;
+      prepare_next_figure(CurrentState);
       game_state = SPAWN;
       break;
     case MOVING:
@@ -20,19 +20,20 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
       game_state = MOVING;
       break;
     case ATTACHING:
+      if (!Check_collision_V2(CurrentState, CurrentBlock)) {
+        game_state = MOVING;
+        break;
+      }
+
+      game_state = foo_attaching(CurrentState, CurrentBlock);
       CurrentState->score += count_score(full_line(CurrentState));
       CurrentState->level = lvl_up(CurrentState->score);
-      clear_temporary_figure(CurrentState);
-      game_state = foo_attaching(CurrentState, CurrentBlock);
+      CurrentState->high_score =
+          update_record(CurrentState->score, CurrentState->high_score);
+      // game_state = SPAWN;
       break;
     case GAME_OVER:
-      // if (should_restart_game()) {  // Функция проверки рестарта
-      //   game_state = GAME_START;
-      exit(0);  // ДОБАВИТЬ К ТАЙМЕРУ СКОРОСТЬ
-      game_state = GAME_START;
-
-      // reset_game_state(CurrentState);
-      // }
+      game_state = on_game_over(CurrentState);
       break;
     default:
       break;
@@ -40,21 +41,43 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   return game_state;
 }
 
+FSM on_game_over(GameInfo_t* CurrentState) {
+  if (CurrentState->score > CurrentState->high_score) {
+    CurrentState->high_score = CurrentState->score;
+    save_record(CurrentState->score, CurrentState->high_score);
+  }
+  empty_matrix(CurrentState->field);
+  empty_matrix(CurrentState->next);
+  return GAME_START;
+}
+
+int update_record(int score, int record) {
+  return score > record ? score : record;
+}
+
 void reset_game_state(GameInfo_t* state) {
   // Очищаем поле
   empty_matrix(state->field);
+  empty_matrix(state->next);
 
+  // if (state->score > state->high_score) {
+
+  save_record(state->score, state->high_score);
+  // }
   // Сбрасываем параметры
-  game_over(false);
   state->score = 0;
   state->level = 0;
   state->pause = false;
+  game_over(false);
+}
 
-  // Обновляем рекорд
-  FILE* file = fopen("./high_score.txt", "r");
-  if (file) {
-    fscanf(file, "%d", &state->high_score);
-    fclose(file);
+void save_record(int score, int record) {
+  if (score == record) {
+    FILE* file = fopen("./high_score.txt", "w");
+    if (file) {
+      fprintf(file, "%d", score);
+      fclose(file);
+    }
   }
 }
 
@@ -80,6 +103,7 @@ int lvl_up(int score) {
 // Изменение скорости
 int count_score(int lines) {
   int score = 0;
+
   switch (lines) {
     case 1:
       score = 100;
@@ -100,21 +124,41 @@ int count_score(int lines) {
 FSM move_down(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   FSM state = MOVING;
   if (!CurrentState->pause) {
-    CurrentBlock->x++;
-    if (Check_collision(CurrentState, CurrentBlock)) {
-      CurrentBlock->x--;
+    if (!Check_collision_V2(CurrentState, CurrentBlock)) {
+      CurrentBlock->x++;
+    } else {
       state = ATTACHING;
     }
   }
   return state;
 }
 
+bool Check_collision_V2(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
+  TetrominoState coords =
+      blockState(CurrentBlock->name, CurrentBlock->rotation);
+
+  for (int i = 0; i < 4; i++) {
+    int world_x = CurrentBlock->x + coords.blocks[i].x + 1;
+    int world_y = CurrentBlock->y + coords.blocks[i].y;
+
+    if (world_x >= GAME_FIELD_HEIGHT || world_y < 0 ||
+        world_y >= GAME_FIELD_WIDTH ||
+        (world_x >= 0 && CurrentState->field[world_x][world_y] > 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// реализовать функцию которая будет отдельно делать проверки для каждого
+// состояни ЩШЫВАЖЫВОЛПТЖОДЫВПЖОЫВРПЖДОЫРВПЖЛОЫРВЖАДОЫВДй
 FSM fall_down(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   FSM state = move_down(CurrentState, CurrentBlock);  // добавить define
   while (state == MOVING) {
     state = move_down(CurrentState, CurrentBlock);
   }
 
+  //  CurrentBlock->x++;
   return state;
 }
 
@@ -203,13 +247,13 @@ void userInput(UserAction_t action, bool hold) {
       CurrentState->pause = !CurrentState->pause;
       break;
     case Terminate:
+      save_record(CurrentState->score, CurrentState->high_score);
       FreeCurrentState(&CurrentState);
       if (CurrentBlock != NULL) {
         free(CurrentBlock);
         CurrentBlock = NULL;
       }
-      CurrentState =
-          NULL;  // Явно указываем, что состояние больше не существует
+      CurrentState = NULL;
       game_over(true);
       break;
     case Left:
@@ -346,14 +390,15 @@ GameInfo_t* getCurrentState() {
       }
     }
   } else {
+    FSM state = -1;                        // define
     clear_temporary_figure(CurrentState);  // открепить фигуру от поля
 
     if (GameTimer(CurrentState->level, CurrentState->pause)) {
-      FiniteStateMachine(CurrentState, CurrentBlock);
+      state = FiniteStateMachine(CurrentState, CurrentBlock);
     }
-
     draw_temporary_figure(CurrentState,
                           CurrentBlock);  // прикрепить фигуру к полю
+    if (state == ATTACHING) clear_temporary_figure(CurrentState);
   }
   return CurrentState;
 }
@@ -436,8 +481,8 @@ void copy_next_to_block(GameInfo_t* CurrentState, GameBlock_t* block) {
   // Устанавливаем параметры блока
   block->name = (TetrominoName)figure_type;
   block->rotation = 0;                  // Начальное состояние поворота
-  block->x = 0;                         // Стартовая позиция по вертикали
-  block->y = GAME_FIELD_WIDTH / 2 - 2;  // Центрирование по горизонтали
+  block->x = -1;                        // Стартовая позиция по вертикали
+  block->y = GAME_FIELD_WIDTH / 2 - 1;  // Центрирование по горизонтали
 
   // Копируем координаты фигуры из предопределённых состояний
   TetrominoState state = blockState(figure_type, 0);
@@ -509,62 +554,27 @@ void empty_matrix(int** matrix_A) {
   }
 }
 
-// int full_line(GameInfo_t* CurrentState) {
-//   int counter = 0;
-//   for (int i = GAME_FIELD_HEIGHT - 1; i >= 0; i--) {
-//     bool full = true;  // Заполнена
-//     for (int j = 0; j < GAME_FIELD_WIDTH && full; j++) {
-//       if (CurrentState->field[i][j] == 0) {
-//         full = false;  // Линия не заполнена
-//       }
-//     }
-
-//     if (full) {
-//       for (int m = i - 1; m >= 0; m--) {
-//         for (int k = 0; k < GAME_FIELD_WIDTH; k++) {
-//           CurrentState->field[m + 1][k] = CurrentState->field[m][k];
-//           if (m == 0) {
-//             CurrentState->field[m][k] = 0;
-//           }
-//         }
-//       }
-//       i++;
-//       counter++;
-//     }
-//   }
-
-//   return counter;
-// }
-
 int full_line(GameInfo_t* CurrentState) {
   int counter = 0;
-
-  // 1. Сначала копируем текущую фигуру (значения 2) в основное поле (значения
-  // 1)
-  for (int i = 0; i < GAME_FIELD_HEIGHT; i++) {
-    for (int j = 0; j < GAME_FIELD_WIDTH; j++) {
-      if (CurrentState->field[i][j] == 2) {
-        CurrentState->field[i][j] = 1;
-      }
-    }
-  }
-
-  // 2. Теперь обрабатываем заполненные линии
   for (int i = GAME_FIELD_HEIGHT - 1; i >= 0; i--) {
-    bool full = true;
+    bool full = true;  // Заполнена
     for (int j = 0; j < GAME_FIELD_WIDTH && full; j++) {
       if (CurrentState->field[i][j] == 0) {
-        full = false;
+        full = false;  // Линия не заполнена
       }
     }
+
     if (full) {
       for (int m = i - 1; m >= 0; m--) {
         for (int k = 0; k < GAME_FIELD_WIDTH; k++) {
           CurrentState->field[m + 1][k] = CurrentState->field[m][k];
+          if (m == 0) {
+            CurrentState->field[m][k] = 0;
+          }
         }
       }
-      counter++;
       i++;
+      counter++;
     }
   }
 

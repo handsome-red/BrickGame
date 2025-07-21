@@ -45,6 +45,7 @@ UserAction_t readInput() {
 }
 
 void print_game_field(GameInfo_t CurrentState) {
+  // static int prev_field[GAME_FIELD_HEIGHT][GAME_FIELD_WIDTH];
   for (int i = 0; i < GAME_FIELD_HEIGHT; i++) {
     for (int j = 0; j < GAME_FIELD_WIDTH; j++) {
       if (CurrentState.field[i][j] == 0) {
