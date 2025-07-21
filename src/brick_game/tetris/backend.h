@@ -40,7 +40,7 @@ void copy_next_to_block(GameInfo_t* CurrentState, GameBlock_t* block);
 int GameTimer(int level, int pause);
 FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 void FreeCurrentState(GameInfo_t** CurrentState);
-void empty_matrix(int** matrix_A);
+void empty_matrix(int** matrix, int row, int col);
 void prepare_next_figure(GameInfo_t* CurrentState);
 bool Check_collision(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 bool Check_collision_V2(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);

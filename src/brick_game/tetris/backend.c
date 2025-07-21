@@ -6,6 +6,8 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
 
   switch (game_state) {
     case GAME_START:
+      empty_matrix(CurrentState->field, GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH);
+      empty_matrix(CurrentState->next, BLOCK_SIZE, BLOCK_SIZE);
       CurrentState->level = 0;
       CurrentState->score = 0;
       prepare_next_figure(CurrentState);
@@ -27,12 +29,16 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
 
       game_state = foo_attaching(CurrentState, CurrentBlock);
       CurrentState->score += count_score(full_line(CurrentState));
+      // if (game_state == GAME_OVER) {
+      //   exit(0);
+      // }
       CurrentState->level = lvl_up(CurrentState->score);
       CurrentState->high_score =
           update_record(CurrentState->score, CurrentState->high_score);
       // game_state = SPAWN;
       break;
     case GAME_OVER:
+      // exit(0);
       game_state = on_game_over(CurrentState);
       break;
     default:
@@ -46,29 +52,11 @@ FSM on_game_over(GameInfo_t* CurrentState) {
     CurrentState->high_score = CurrentState->score;
     save_record(CurrentState->score, CurrentState->high_score);
   }
-  empty_matrix(CurrentState->field);
-  empty_matrix(CurrentState->next);
   return GAME_START;
 }
 
 int update_record(int score, int record) {
   return score > record ? score : record;
-}
-
-void reset_game_state(GameInfo_t* state) {
-  // Очищаем поле
-  empty_matrix(state->field);
-  empty_matrix(state->next);
-
-  // if (state->score > state->high_score) {
-
-  save_record(state->score, state->high_score);
-  // }
-  // Сбрасываем параметры
-  state->score = 0;
-  state->level = 0;
-  state->pause = false;
-  game_over(false);
 }
 
 void save_record(int score, int record) {
@@ -318,7 +306,10 @@ int GameTimer(int level, int pause) {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  int interval = 1000 / (1 + level * 0.5);
+  int interval =
+      1000 /
+      (1 +
+       level * 0.5);  // JKHADFLKJHDAFKJHADFKJHDKFJHKLJHLKJDHFLKJAHDFKJHALKDJFH
   // int interval = 1000 / (1 + level * 10);
   if (interval < 50) interval = 50;
 
@@ -492,7 +483,7 @@ void copy_next_to_block(GameInfo_t* CurrentState, GameBlock_t* block) {
 }
 
 void prepare_next_figure(GameInfo_t* CurrentState) {
-  empty_matrix(CurrentState->next);
+  empty_matrix(CurrentState->next, BLOCK_SIZE, BLOCK_SIZE);
   int next_type = rand() % 7;
   TetrominoState next = blockState(next_type, 0);
 
@@ -546,10 +537,10 @@ void copy_matrix(int** matrix_A, int** matrix_B) {
   }
 }
 
-void empty_matrix(int** matrix_A) {
-  for (int i = 0; i < BLOCK_SIZE; i++) {
-    for (int j = 0; j < BLOCK_SIZE; j++) {
-      matrix_A[i][j] = 0;
+void empty_matrix(int** matrix, int row, int col) {
+  for (int i = 0; i < row; i++) {
+    for (int j = 0; j < col; j++) {
+      matrix[i][j] = 0;
     }
   }
 }
@@ -590,3 +581,13 @@ void roll_figure(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
     }
   }
 }
+
+// void roll_figure(int pause, GameBlock_t* CurrentBlock) {
+//   if (!CurrentState->pause) {
+//     CurrentBlock->rotation = (CurrentBlock->rotation + 1) % 4;
+
+//     if (Check_collision(CurrentState, CurrentBlock)) {
+//       CurrentBlock->rotation = (CurrentBlock->rotation - 1) % 4;
+//     }
+//   }
+// }
