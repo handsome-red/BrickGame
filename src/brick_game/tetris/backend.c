@@ -6,45 +6,53 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
 
   switch (game_state) {
     case GAME_START:
-      empty_matrix(CurrentState->field, GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH);
-      empty_matrix(CurrentState->next, BLOCK_SIZE, BLOCK_SIZE);
-      CurrentState->level = 0;
-      CurrentState->score = 0;
-      prepare_next_figure(CurrentState);
-      game_state = SPAWN;
+      game_state = on_game_start(CurrentState);
       break;
     case MOVING:
       game_state = move_down(CurrentState, CurrentBlock);
       break;
     case SPAWN:
-      copy_next_to_block(CurrentState, CurrentBlock);
-      prepare_next_figure(CurrentState);
-      game_state = MOVING;
+      game_state = on_game_spawn(CurrentState, CurrentBlock);
       break;
     case ATTACHING:
-      if (!Check_collision_V2(CurrentState, CurrentBlock)) {
-        game_state = MOVING;
-        break;
-      }
-
-      game_state = foo_attaching(CurrentState, CurrentBlock);
-      CurrentState->score += count_score(full_line(CurrentState));
-      // if (game_state == GAME_OVER) {
-      //   exit(0);
-      // }
-      CurrentState->level = lvl_up(CurrentState->score);
-      CurrentState->high_score =
-          update_record(CurrentState->score, CurrentState->high_score);
-      // game_state = SPAWN;
+      game_state = on_attaching(CurrentState, CurrentBlock);
       break;
     case GAME_OVER:
-      // exit(0);
       game_state = on_game_over(CurrentState);
       break;
     default:
       break;
   }
   return game_state;
+}
+
+FSM on_attaching(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
+  FSM game_state = SPAWN;
+  if (!check_collision(CurrentState, CurrentBlock, true)) {
+    game_state = MOVING;
+  } else {
+    game_state = foo_attaching(CurrentState, CurrentBlock);
+    CurrentState->score += count_score(full_line(CurrentState));
+    CurrentState->level = lvl_up(CurrentState->score);
+    CurrentState->high_score =
+        update_record(CurrentState->score, CurrentState->high_score);
+  }
+  return game_state;
+}
+
+FSM on_game_spawn(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
+  copy_next_to_block(CurrentState, CurrentBlock);
+  prepare_next_figure(CurrentState);
+  return MOVING;
+}
+
+FSM on_game_start(GameInfo_t* CurrentState) {
+  empty_matrix(CurrentState->field, GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH);
+  empty_matrix(CurrentState->next, BLOCK_SIZE, BLOCK_SIZE);
+  prepare_next_figure(CurrentState);
+  CurrentState->level = 0;
+  CurrentState->score = 0;
+  return SPAWN;
 }
 
 FSM on_game_over(GameInfo_t* CurrentState) {
@@ -67,16 +75,6 @@ void save_record(int score, int record) {
       fclose(file);
     }
   }
-}
-
-bool game_over(bool flag) {
-  static bool game_over_flag = false;
-  if (flag) {
-    game_over_flag = true;
-  } else {
-    game_over_flag = false;
-  }
-  return game_over_flag;
 }
 
 int lvl_up(int score) {
@@ -112,7 +110,7 @@ int count_score(int lines) {
 FSM move_down(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   FSM state = MOVING;
   if (!CurrentState->pause) {
-    if (!Check_collision_V2(CurrentState, CurrentBlock)) {
+    if (!check_collision(CurrentState, CurrentBlock, true)) {
       CurrentBlock->x++;
     } else {
       state = ATTACHING;
@@ -121,12 +119,13 @@ FSM move_down(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   return state;
 }
 
-bool Check_collision_V2(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
+bool check_collision(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock,
+                     bool predict) {
   TetrominoState coords =
       blockState(CurrentBlock->name, CurrentBlock->rotation);
 
   for (int i = 0; i < 4; i++) {
-    int world_x = CurrentBlock->x + coords.blocks[i].x + 1;
+    int world_x = CurrentBlock->x + coords.blocks[i].x + predict;
     int world_y = CurrentBlock->y + coords.blocks[i].y;
 
     if (world_x >= GAME_FIELD_HEIGHT || world_y < 0 ||
@@ -138,15 +137,11 @@ bool Check_collision_V2(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   return false;
 }
 
-// реализовать функцию которая будет отдельно делать проверки для каждого
-// состояни ЩШЫВАЖЫВОЛПТЖОДЫВПЖОЫВРПЖДОЫРВПЖЛОЫРВЖАДОЫВДй
 FSM fall_down(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
-  FSM state = move_down(CurrentState, CurrentBlock);  // добавить define
+  FSM state = move_down(CurrentState, CurrentBlock);
   while (state == MOVING) {
     state = move_down(CurrentState, CurrentBlock);
   }
-
-  //  CurrentBlock->x++;
   return state;
 }
 
@@ -154,9 +149,8 @@ FSM move_left(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   FSM state = MOVING;
   if (!CurrentState->pause) {
     CurrentBlock->y--;
-    if (Check_collision(CurrentState, CurrentBlock)) {
+    if (check_collision(CurrentState, CurrentBlock, false)) {
       CurrentBlock->y++;
-      // state = ATTACHING;
     }
   }
 
@@ -167,9 +161,8 @@ FSM move_right(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   FSM state = MOVING;
   if (!CurrentState->pause) {
     CurrentBlock->y++;
-    if (Check_collision(CurrentState, CurrentBlock)) {
+    if (check_collision(CurrentState, CurrentBlock, false)) {
       CurrentBlock->y--;
-      // state = ATTACHING;
     }
   }
 
@@ -184,11 +177,6 @@ FSM foo_detachment(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
     int x = CurrentBlock->x + coords.blocks[i].x;
     int y = CurrentBlock->y + coords.blocks[i].y;
 
-    // if ((x >= 0 && x < GAME_FIELD_HEIGHT && y >= 0 && y < GAME_FIELD_WIDTH)
-    // &&
-    //     CurrentState->field[x][y] > 1) {
-    //   CurrentState->field[x][y] = 0;
-    // }
     if ((x >= 0 && x < GAME_FIELD_HEIGHT && y >= 0 && y < GAME_FIELD_WIDTH)) {
       CurrentState->field[x][y] = 0;
     }
@@ -196,31 +184,11 @@ FSM foo_detachment(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   return MOVING;
 }
 
-bool Check_collision(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
-  TetrominoState coords =
-      blockState(CurrentBlock->name, CurrentBlock->rotation);
-
-  for (int i = 0; i < 4; i++) {
-    int world_x = CurrentBlock->x + coords.blocks[i].x;
-    int world_y = CurrentBlock->y + coords.blocks[i].y;
-
-    if (world_x >= GAME_FIELD_HEIGHT || world_y < 0 ||
-        world_y >= GAME_FIELD_WIDTH ||
-        (world_x >= 0 && CurrentState->field[world_x][world_y] > 0)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/*
-Добавить флаг который будет запрещать перещать фигуру при attaching
-*/
 void userInput(UserAction_t action, bool hold) {
   (void)hold;  // ATENTION
 
   GameInfo_t* CurrentState = getCurrentState();
-  GameBlock_t* CurrentBlock = getCurrentBlock();
+  GameBlock_t* CurrentBlock = getCurrentBlock(false);
   // FSM state = -1;
 
   if (CurrentState) {
@@ -234,15 +202,20 @@ void userInput(UserAction_t action, bool hold) {
     case Pause:
       CurrentState->pause = !CurrentState->pause;
       break;
+    // case Terminate:
+    //   save_record(CurrentState->score, CurrentState->high_score);
+    //   FreeCurrentState(&CurrentState);
+    //   if (CurrentBlock != NULL) {
+    //     free(CurrentBlock);
+    //     CurrentBlock = NULL;
+    //   }
+    //   CurrentState = NULL;
+    //   break;
     case Terminate:
       save_record(CurrentState->score, CurrentState->high_score);
       FreeCurrentState(&CurrentState);
-      if (CurrentBlock != NULL) {
-        free(CurrentBlock);
-        CurrentBlock = NULL;
-      }
+      getCurrentBlock(true);  // Сбросит статический блок
       CurrentState = NULL;
-      game_over(true);
       break;
     case Left:
       move_left(CurrentState, CurrentBlock);
@@ -332,22 +305,43 @@ GameInfo_t updateCurrentState() {
   return result;
 }
 
-GameBlock_t* getCurrentBlock() {
+// GameBlock_t* getCurrentBlock() {
+//   static GameBlock_t* CurrentBlock = NULL;
+//   if (NULL == CurrentBlock) {
+//     CurrentBlock = (GameBlock_t*)malloc(sizeof(GameBlock_t));
+//     CurrentBlock->name = -1;
+//     CurrentBlock->rotation = 0;
+//     CurrentBlock->x = 0;
+//     CurrentBlock->y = GAME_FIELD_WIDTH / 2 - 2;
+//     for (int i = 0; i < 4; i++) {  // Использовать функцию матриц
+//       CurrentBlock->coords.blocks[i].x = 0;
+//       CurrentBlock->coords.blocks[i].y = 0;
+//     }
+//   }
+
+//   return CurrentBlock;
+//   // return (CurrentBlock && CurrentBlock->name != -1) ? CurrentBlock : NULL;
+// }
+
+GameBlock_t* getCurrentBlock(bool reset) {
   static GameBlock_t* CurrentBlock = NULL;
+  if (reset && CurrentBlock) {
+    free(CurrentBlock);
+    CurrentBlock = NULL;
+    return NULL;
+  }
   if (NULL == CurrentBlock) {
     CurrentBlock = (GameBlock_t*)malloc(sizeof(GameBlock_t));
     CurrentBlock->name = -1;
     CurrentBlock->rotation = 0;
     CurrentBlock->x = 0;
     CurrentBlock->y = GAME_FIELD_WIDTH / 2 - 2;
-    for (int i = 0; i < 4; i++) {  // Использовать функцию матриц
+    for (int i = 0; i < 4; i++) {
       CurrentBlock->coords.blocks[i].x = 0;
       CurrentBlock->coords.blocks[i].y = 0;
     }
   }
-
   return CurrentBlock;
-  // return (CurrentBlock && CurrentBlock->name != -1) ? CurrentBlock : NULL;
 }
 
 /**
@@ -355,7 +349,7 @@ GameBlock_t* getCurrentBlock() {
  */
 GameInfo_t* getCurrentState() {
   static GameInfo_t* CurrentState = NULL;  // Убрать указатель
-  GameBlock_t* CurrentBlock = getCurrentBlock();
+  GameBlock_t* CurrentBlock = getCurrentBlock(false);
   if (NULL == CurrentState) {
     CurrentState = (GameInfo_t*)malloc(sizeof(GameInfo_t));
 
@@ -367,13 +361,7 @@ GameInfo_t* getCurrentState() {
         FreeCurrentState(&CurrentState);
       } else {
         CurrentState->score = 0;
-        FILE* file = fopen("./high_score.txt", "r");  // Отдельная функция
-        if (file) {
-          fscanf(file, "%d", &CurrentState->high_score);
-          fclose(file);
-        } else {
-          CurrentState->high_score = 0;
-        }
+        CurrentState->high_score = load_high_score();
 
         CurrentState->level = 0;
         CurrentState->speed = DEFAULT_SPEED;
@@ -394,6 +382,28 @@ GameInfo_t* getCurrentState() {
   return CurrentState;
 }
 
+/**
+ * @brief Загружает рекорд из файла
+ * @return Загруженный рекорд или 0, если файл не существует
+ */
+int load_high_score() {
+  int high_score = 0;
+  FILE* file = fopen("./high_score.txt", "r");
+
+  if (file) {
+    if (fscanf(file, "%d", &high_score) != 1) {
+      high_score = 0;  // Если не удалось прочитать число
+    }
+    fclose(file);
+  }
+
+  return high_score;
+}
+
+/**
+ * @brief краткое описание функции
+ * @param GameInfo
+ */
 void clear_temporary_figure(GameInfo_t* state) {
   for (int i = 0; i < GAME_FIELD_HEIGHT; i++) {
     for (int j = 0; j < GAME_FIELD_WIDTH; j++) {
@@ -421,7 +431,6 @@ void draw_temporary_figure(GameInfo_t* state, GameBlock_t* block) {
 // Модифицированная функция прикрепления
 FSM foo_attaching(GameInfo_t* state, GameBlock_t* block) {
   TetrominoState coords = blockState(block->name, block->rotation);
-  // FSM game_over = SPAWN;
   bool can_spawn = true;
 
   for (int y = 0; y < GAME_FIELD_WIDTH; y++) {
@@ -576,18 +585,8 @@ void roll_figure(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   if (!CurrentState->pause) {
     CurrentBlock->rotation = (CurrentBlock->rotation + 1) % 4;
 
-    if (Check_collision(CurrentState, CurrentBlock)) {
+    if (check_collision(CurrentState, CurrentBlock, false)) {
       CurrentBlock->rotation = (CurrentBlock->rotation - 1) % 4;
     }
   }
 }
-
-// void roll_figure(int pause, GameBlock_t* CurrentBlock) {
-//   if (!CurrentState->pause) {
-//     CurrentBlock->rotation = (CurrentBlock->rotation + 1) % 4;
-
-//     if (Check_collision(CurrentState, CurrentBlock)) {
-//       CurrentBlock->rotation = (CurrentBlock->rotation - 1) % 4;
-//     }
-//   }
-// }

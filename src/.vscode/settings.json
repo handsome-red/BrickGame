@@ -71,6 +71,7 @@
     "unordered_map": "c",
     "vector": "c",
     "format": "c",
-    "locale": "c"
+    "locale": "c",
+    "frontend.h": "c"
   }
 }

@@ -42,8 +42,8 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 void FreeCurrentState(GameInfo_t** CurrentState);
 void empty_matrix(int** matrix, int row, int col);
 void prepare_next_figure(GameInfo_t* CurrentState);
-bool Check_collision(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
-bool Check_collision_V2(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
+bool check_collision(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock,
+                     bool predict);
 void copy_matrix(int** matrix_A, int** matrix_B);
 
 FSM foo_attaching(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
@@ -61,14 +61,15 @@ int count_score(int lines);
 int lvl_up(int score);
 void save_record(int score, int record);
 int update_record(int score, int record);
-
-bool game_over(bool flag);
-void reset_game_state(GameInfo_t* state);
+int load_high_score();
 
 void draw_temporary_figure(GameInfo_t* state, GameBlock_t* block);
 void clear_temporary_figure(GameInfo_t* state);
-GameBlock_t* getCurrentBlock();
+GameBlock_t* getCurrentBlock(bool reset);
 
 FSM on_game_over(GameInfo_t* CurrentState);
+FSM on_game_start(GameInfo_t* CurrentState);
+FSM on_game_spawn(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
+FSM on_attaching(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 
 #endif

@@ -1,6 +1,18 @@
 #include "./frontend.h"
 
-void init_ncurses() {
+/**
+ * @brief Initializes ncurses library with default game settings
+ *
+ * Configures terminal for game input/output:
+ * - Enables raw character input without line buffering
+ * - Disables character echoing
+ * - Enables extended keyboard input (F-keys, arrows)
+ * - Sets non-blocking input mode
+ * - Enables scrolling
+ * - Hides cursor
+ * - Configures mouse event timing
+ */
+void initialize_ncurses() {
   initscr();
   cbreak();
   noecho();
@@ -12,7 +24,7 @@ void init_ncurses() {
 }
 
 UserAction_t readInput() {
-  UserAction_t action = -1;
+  UserAction_t action = NO_ACTION;
   int ch = getch();
 
   switch (ch) {
@@ -44,61 +56,64 @@ UserAction_t readInput() {
   return action;
 }
 
-void print_game_field(GameInfo_t CurrentState) {
-  // static int prev_field[GAME_FIELD_HEIGHT][GAME_FIELD_WIDTH];
-  for (int i = 0; i < GAME_FIELD_HEIGHT; i++) {
-    for (int j = 0; j < GAME_FIELD_WIDTH; j++) {
-      if (CurrentState.field[i][j] == 0) {
-        mvaddch(i, j * 2, ACS_CKBOARD);
-        mvaddch(i, j * 2 + 1, ACS_CKBOARD);
-      } else {
-        mvaddch(i, j * 2, ' ' | A_REVERSE);
-        mvaddch(i, j * 2 + 1, ' ' | A_REVERSE);
-      }
+void render(GameInfo_t CurrentState) {
+  if (CurrentState.field != NULL) {
+    render_game_field(CurrentState.field);
+    render_game_status(CurrentState);
+    refresh();
+  }
+}
+
+// void render_game_field(GameInfo_t CurrentState) {
+void render_game_field(int** filed) {
+  for (int row = 0; row < GAME_FIELD_HEIGHT; row++) {
+    for (int col = 0; col < GAME_FIELD_WIDTH; col++) {
+      render_cell(row, col, filed[row][col]);
     }
   }
 }
 
-void print_game_info(GameInfo_t CurrentState) {
-  char str_record[100] = {0};
-  sprintf(str_record, "RECORD: %d", CurrentState.high_score);
+void render_cell(int row, int col, bool is_filled) {
+  const chtype ch = is_filled ? (' ' | A_REVERSE) : ACS_CKBOARD;
+  mvaddch(row, col * 2, ch);
+  mvaddch(row, col * 2 + 1, ch);
+}
 
-  char str_level[100] = {0};
-  sprintf(str_level, "LEVEL : %d", CurrentState.level);
+void render_game_status(GameInfo_t CurrentState) {
+  const int sidebar_x = GAME_FIELD_WIDTH * 2 * 1.3;
+  const int start_y = GAME_FIELD_HEIGHT - 12;
 
-  char str_score[100] = {0};
-  sprintf(str_score, "SCORE : %d", CurrentState.score);
+  char buffer[5][32];
+  snprintf(buffer[0], sizeof(buffer[0]), "RECORD: %d", CurrentState.high_score);
+  snprintf(buffer[1], sizeof(buffer[1]), "LEVEL : %d", CurrentState.level);
+  snprintf(buffer[2], sizeof(buffer[2]), "SCORE : %d", CurrentState.score);
+  snprintf(buffer[3], sizeof(buffer[3]), "PAUSE : %s",
+           CurrentState.pause ? "ON " : "OFF");
+  snprintf(buffer[4], sizeof(buffer[4]), "SPEED : %d", CurrentState.speed);
 
-  char str_pause[100] = {0};
-
-  sprintf(str_pause, "PAUSE : %s", CurrentState.pause ? "ON " : "OFF");
+  for (int i = 0; i < 5; i++) {
+    mvaddstr(start_y + (i * 2), sidebar_x, buffer[i]);
+  }
 
   print_next_figure(CurrentState);
-
-  mvaddstr(GAME_FIELD_HEIGHT - 12, GAME_FIELD_WIDTH * 2 * 1.3, str_pause);
-  mvaddstr(GAME_FIELD_HEIGHT - 10, GAME_FIELD_WIDTH * 2 * 1.3, str_score);
-  mvaddstr(GAME_FIELD_HEIGHT - 8, GAME_FIELD_WIDTH * 2 * 1.3, str_level);
-  mvaddstr(GAME_FIELD_HEIGHT - 6, GAME_FIELD_WIDTH * 2 * 1.3, str_record);
 }
 
-//
 void print_next_figure(GameInfo_t CurrentState) {
-  for (int i = 0; i < BLOCK_SIZE + 2; i++) {
-    for (int j = 0; j < BLOCK_SIZE * 2 + 4; j++) {
-      mvaddch(NEXT_FIGURE_Y + i, NEXT_FIGURE_X + j, ' ');
+  for (int row = 0; row < BLOCK_SIZE; row++) {
+    for (int col = 0; col < BLOCK_SIZE; col++) {
+      mvaddch(NEXT_FIGURE_Y + row, NEXT_FIGURE_X + col * 2, ' ');
+      mvaddch(NEXT_FIGURE_Y + row, NEXT_FIGURE_X + col * 2 + 1, ' ');
     }
   }
 
-  mvprintw(NEXT_FIGURE_Y - 2, NEXT_FIGURE_X + 2, "NEXT");
+  mvprintw(NEXT_FIGURE_Y - 2, NEXT_FIGURE_X, "NEXT");
 
-  for (int i = 0; i < BLOCK_SIZE; i++) {
-    for (int j = 0; j < BLOCK_SIZE; j++) {
-      if (CurrentState.next[i][j]) {
-        int y_pos = NEXT_FIGURE_Y + 1 + i;
-        int x_pos = NEXT_FIGURE_X + 3 + j * 2;
-
-        mvaddch(y_pos, x_pos, ' ' | A_REVERSE);
-        mvaddch(y_pos, x_pos + 1, ' ' | A_REVERSE);
+  for (int row = 0; row < BLOCK_SIZE; row++) {
+    for (int col = 0; col < BLOCK_SIZE; col++) {
+      if (CurrentState.next[row][col]) {
+        mvaddch(NEXT_FIGURE_Y + row, NEXT_FIGURE_X + col * 2, ' ' | A_REVERSE);
+        mvaddch(NEXT_FIGURE_Y + row, NEXT_FIGURE_X + col * 2 + 1,
+                ' ' | A_REVERSE);
       }
     }
   }
