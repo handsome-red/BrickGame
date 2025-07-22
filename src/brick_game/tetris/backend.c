@@ -4,6 +4,10 @@
 FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   static FSM game_state = GAME_START;
 
+  if (!CurrentState || !CurrentBlock) {
+    return GAME_OVER;
+  }
+
   switch (game_state) {
     case GAME_START:
       game_state = on_game_start(CurrentState);
@@ -26,13 +30,127 @@ FSM FiniteStateMachine(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   return game_state;
 }
 
+void reset_game_state(GameInfo_t* state) {
+  empty_matrix(state->field, GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH);
+  empty_matrix(state->next, BLOCK_SIZE, BLOCK_SIZE);
+
+  state->score = 0;
+  state->level = 0;
+  state->speed = state->level;
+
+  prepare_next_figure(state);
+}
+
+void userInput(UserAction_t action, bool hold) {
+  (void)hold;  // ATENTION
+
+  GameInfo_t* CurrentState = getCurrentState();
+  GameBlock_t* CurrentBlock = getCurrentBlock(false);
+
+  if (CurrentState) {
+    clear_temporary_figure(CurrentState);
+  }
+
+  switch (action) {
+    case Start:
+      // reset_game_state(CurrentState);
+      CurrentState->pause = PAUSE_OFF;
+      break;
+    case Pause:
+      CurrentState->pause = !CurrentState->pause;
+      break;
+    case Terminate:
+      CurrentState->pause = -1;
+      break;
+    case Left:
+      move_left(CurrentState, CurrentBlock);
+      break;
+    case Right:
+      move_right(CurrentState, CurrentBlock);
+      break;
+    case Up:
+      rotate_figure(CurrentState, CurrentBlock);
+      break;
+    case Down:
+      hold = true;
+      move_down(CurrentState, CurrentBlock);
+      break;
+    case Action:
+      fall_down(CurrentState, CurrentBlock);
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * Добавить флаг для того чтобы контролировать
+ */
+GameInfo_t* getCurrentState() {
+  static GameInfo_t* CurrentState = NULL;
+  static bool initialized = false;
+
+  // Инициализация при первом вызове
+  if (!initialized) {
+    CurrentState = (GameInfo_t*)malloc(sizeof(GameInfo_t));
+    if (!CurrentState) return NULL;
+
+    CurrentState->field = create_matrix(GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH);
+    CurrentState->next = create_matrix(BLOCK_SIZE, BLOCK_SIZE);
+
+    if (!CurrentState->field || !CurrentState->next) {
+      FreeCurrentState(&CurrentState);
+      return NULL;
+    }
+
+    // Начальные значения
+    CurrentState->score = 0;
+    CurrentState->high_score = load_high_score();
+    CurrentState->level = 0;
+    CurrentState->speed = CurrentState->level;
+    CurrentState->pause = PREVIEW;
+
+    initialized = true;
+  }
+
+  // Обновление состояния игры
+  GameBlock_t* CurrentBlock = getCurrentBlock(false);
+  if (CurrentBlock) {
+    clear_temporary_figure(CurrentState);
+
+    if (GameTimer(CurrentState->level, CurrentState->pause)) {
+      FiniteStateMachine(CurrentState, CurrentBlock);
+    }
+
+    draw_temporary_figure(CurrentState, CurrentBlock);
+  }
+
+  return CurrentState;
+}
+
+void free_resourse() {
+  GameInfo_t* CurrentState = getCurrentState();
+  GameBlock_t* CurrentBlock = getCurrentBlock(false);
+
+  if (CurrentState) {
+    destroy_matrix(&CurrentState->field, GAME_FIELD_HEIGHT);
+    destroy_matrix(&CurrentState->next, BLOCK_SIZE);
+    free(CurrentState);
+    // CurrentState = NULL;
+  }
+
+  if (CurrentBlock) {
+    free(CurrentBlock);
+  }
+}
+
 FSM on_attaching(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   FSM game_state = SPAWN;
   if (!check_collision(CurrentState, CurrentBlock, true)) {
     game_state = MOVING;
   } else {
     game_state = foo_attaching(CurrentState, CurrentBlock);
-    CurrentState->score += count_score(full_line(CurrentState));
+    CurrentState->score += count_score(clear_full_lines(CurrentState));
     CurrentState->level = lvl_up(CurrentState->score);
     CurrentState->high_score =
         update_record(CurrentState->score, CurrentState->high_score);
@@ -60,6 +178,9 @@ FSM on_game_over(GameInfo_t* CurrentState) {
     CurrentState->high_score = CurrentState->score;
     save_record(CurrentState->score, CurrentState->high_score);
   }
+
+  CurrentState->pause = PREVIEW;
+
   return GAME_START;
 }
 
@@ -184,61 +305,6 @@ FSM foo_detachment(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
   return MOVING;
 }
 
-void userInput(UserAction_t action, bool hold) {
-  (void)hold;  // ATENTION
-
-  GameInfo_t* CurrentState = getCurrentState();
-  GameBlock_t* CurrentBlock = getCurrentBlock(false);
-  // FSM state = -1;
-
-  if (CurrentState) {
-    clear_temporary_figure(CurrentState);
-  }
-
-  switch (action) {
-    case Start:
-      CurrentState->pause = !CurrentState->pause;
-      break;
-    case Pause:
-      CurrentState->pause = !CurrentState->pause;
-      break;
-    // case Terminate:
-    //   save_record(CurrentState->score, CurrentState->high_score);
-    //   FreeCurrentState(&CurrentState);
-    //   if (CurrentBlock != NULL) {
-    //     free(CurrentBlock);
-    //     CurrentBlock = NULL;
-    //   }
-    //   CurrentState = NULL;
-    //   break;
-    case Terminate:
-      save_record(CurrentState->score, CurrentState->high_score);
-      FreeCurrentState(&CurrentState);
-      getCurrentBlock(true);  // Сбросит статический блок
-      CurrentState = NULL;
-      break;
-    case Left:
-      move_left(CurrentState, CurrentBlock);
-      break;
-    case Right:
-      move_right(CurrentState, CurrentBlock);
-      break;
-    case Up:
-      roll_figure(CurrentState, CurrentBlock);
-      break;
-    case Down:
-      hold = true;
-      move_down(CurrentState, CurrentBlock);
-      break;
-    case Action:
-      fall_down(CurrentState, CurrentBlock);
-      break;
-
-    default:
-      break;
-  }
-}
-
 TetrominoState blockState(int BlockType, int BlockState) {
   static const TetrominoState TETRIMINOS[7][4] = {
       [I] = {{{{-1, 0}, {0, 0}, {1, 0}, {2, 0}}},
@@ -279,11 +345,7 @@ int GameTimer(int level, int pause) {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  int interval =
-      1000 /
-      (1 +
-       level * 0.5);  // JKHADFLKJHDAFKJHADFKJHDKFJHKLJHLKJDHFLKJAHDFKJHALKDJFH
-  // int interval = 1000 / (1 + level * 10);
+  int interval = 1000 / (1 + level * 0.5);
   if (interval < 50) interval = 50;
 
   double interval_check = (now.tv_sec - lastTime.tv_sec) * 1000 +
@@ -298,30 +360,8 @@ int GameTimer(int level, int pause) {
 
 GameInfo_t updateCurrentState() {
   GameInfo_t* CurrentState = getCurrentState();
-  GameInfo_t result = {0};
-  if (CurrentState) {
-    result = *CurrentState;
-  }
-  return result;
+  return *CurrentState;
 }
-
-// GameBlock_t* getCurrentBlock() {
-//   static GameBlock_t* CurrentBlock = NULL;
-//   if (NULL == CurrentBlock) {
-//     CurrentBlock = (GameBlock_t*)malloc(sizeof(GameBlock_t));
-//     CurrentBlock->name = -1;
-//     CurrentBlock->rotation = 0;
-//     CurrentBlock->x = 0;
-//     CurrentBlock->y = GAME_FIELD_WIDTH / 2 - 2;
-//     for (int i = 0; i < 4; i++) {  // Использовать функцию матриц
-//       CurrentBlock->coords.blocks[i].x = 0;
-//       CurrentBlock->coords.blocks[i].y = 0;
-//     }
-//   }
-
-//   return CurrentBlock;
-//   // return (CurrentBlock && CurrentBlock->name != -1) ? CurrentBlock : NULL;
-// }
 
 GameBlock_t* getCurrentBlock(bool reset) {
   static GameBlock_t* CurrentBlock = NULL;
@@ -342,44 +382,6 @@ GameBlock_t* getCurrentBlock(bool reset) {
     }
   }
   return CurrentBlock;
-}
-
-/**
- * Добавить флаг для того чтобы контролировать
- */
-GameInfo_t* getCurrentState() {
-  static GameInfo_t* CurrentState = NULL;  // Убрать указатель
-  GameBlock_t* CurrentBlock = getCurrentBlock(false);
-  if (NULL == CurrentState) {
-    CurrentState = (GameInfo_t*)malloc(sizeof(GameInfo_t));
-
-    if (NULL != CurrentState) {
-      CurrentState->field = create_matrix(GAME_FIELD_HEIGHT, GAME_FIELD_WIDTH);
-      CurrentState->next = create_matrix(BLOCK_SIZE, BLOCK_SIZE);
-
-      if (CurrentState->field == NULL || CurrentState->next == NULL) {
-        FreeCurrentState(&CurrentState);
-      } else {
-        CurrentState->score = 0;
-        CurrentState->high_score = load_high_score();
-
-        CurrentState->level = 0;
-        CurrentState->speed = DEFAULT_SPEED;
-        CurrentState->pause = 0;
-      }
-    }
-  } else {
-    FSM state = -1;                        // define
-    clear_temporary_figure(CurrentState);  // открепить фигуру от поля
-
-    if (GameTimer(CurrentState->level, CurrentState->pause)) {
-      state = FiniteStateMachine(CurrentState, CurrentBlock);
-    }
-    draw_temporary_figure(CurrentState,
-                          CurrentBlock);  // прикрепить фигуру к полю
-    if (state == ATTACHING) clear_temporary_figure(CurrentState);
-  }
-  return CurrentState;
 }
 
 /**
@@ -515,26 +517,66 @@ void prepare_next_figure(GameInfo_t* CurrentState) {
 }
 
 void FreeCurrentState(GameInfo_t** CurrentState) {
-  if (*CurrentState) {
-    destroy_matrix((*CurrentState)->field, GAME_FIELD_HEIGHT);
-    destroy_matrix((*CurrentState)->next, BLOCK_SIZE);
-    free(*CurrentState);
-    *CurrentState = NULL;  // Важно!
+  if (CurrentState == NULL || *CurrentState == NULL) {
+    return;
   }
+
+  GameInfo_t* state = *CurrentState;
+
+  destroy_matrix(&state->field, GAME_FIELD_HEIGHT);
+  destroy_matrix(&state->next, BLOCK_SIZE);
+
+  free(state);
+  *CurrentState = NULL;
 }
 
-void destroy_matrix(int** matrix, int size) {
-  for (int i = 0; i < size; i++) {
+// void FreeCurrentState(GameInfo_t* CurrentState) {
+//   if (CurrentState) {
+//     destroy_matrix(&CurrentState->field, GAME_FIELD_HEIGHT);
+//     destroy_matrix(&CurrentState->next, BLOCK_SIZE);
+
+//     free(CurrentState);
+//   }
+// }
+
+void destroy_matrix(int*** matrix_ptr, int rows) {
+  if (matrix_ptr == NULL || *matrix_ptr == NULL) {
+    return;
+  }
+
+  int** matrix = *matrix_ptr;
+
+  for (int i = 0; i < rows; i++) {
     free(matrix[i]);
   }
+
   free(matrix);
+
+  *matrix_ptr = NULL;
 }
 
 int** create_matrix(int rows, int cols) {
+  if (rows <= 0 || cols <= 0) {
+    return NULL;
+  }
+
   int** matrix = (int**)calloc(rows, sizeof(int*));
+  if (matrix == NULL) {
+    return NULL;
+  }
+
   for (int i = 0; i < rows; i++) {
     matrix[i] = (int*)calloc(cols, sizeof(int));
+
+    if (matrix[i] == NULL) {
+      for (int j = 0; j < i; j++) {
+        free(matrix[j]);
+      }
+      free(matrix);
+      return NULL;
+    }
   }
+
   return matrix;
 }
 
@@ -554,35 +596,43 @@ void empty_matrix(int** matrix, int row, int col) {
   }
 }
 
-int full_line(GameInfo_t* CurrentState) {
-  int counter = 0;
-  for (int i = GAME_FIELD_HEIGHT - 1; i >= 0; i--) {
-    bool full = true;  // Заполнена
-    for (int j = 0; j < GAME_FIELD_WIDTH && full; j++) {
-      if (CurrentState->field[i][j] == 0) {
-        full = false;  // Линия не заполнена
-      }
-    }
+int clear_full_lines(GameInfo_t* state) {
+  int lines_cleared = 0;
 
-    if (full) {
-      for (int m = i - 1; m >= 0; m--) {
-        for (int k = 0; k < GAME_FIELD_WIDTH; k++) {
-          CurrentState->field[m + 1][k] = CurrentState->field[m][k];
-          if (m == 0) {
-            CurrentState->field[m][k] = 0;
-          }
-        }
-      }
-      i++;
-      counter++;
+  for (int row = GAME_FIELD_HEIGHT - 1; row >= 0; row--) {
+    if (is_line_full(state->field[row], GAME_FIELD_WIDTH)) {
+      shift_lines_down(state, row);
+      row++;
+      lines_cleared++;
     }
   }
 
-  return counter;
+  return lines_cleared;
 }
 
-void roll_figure(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
-  if (!CurrentState->pause) {
+bool is_line_full(const int* line, int width) {
+  for (int col = 0; col < width; col++) {
+    if (line[col] == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void shift_lines_down(GameInfo_t* state, int from_row) {
+  for (int row = from_row - 1; row >= 0; row--) {
+    for (int col = 0; col < GAME_FIELD_WIDTH; col++) {
+      state->field[row + 1][col] = state->field[row][col];
+    }
+  }
+
+  for (int col = 0; col < GAME_FIELD_WIDTH; col++) {
+    state->field[0][col] = 0;
+  }
+}
+
+void rotate_figure(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock) {
+  if (CurrentState && CurrentBlock && !CurrentState->pause) {
     CurrentBlock->rotation = (CurrentBlock->rotation + 1) % 4;
 
     if (check_collision(CurrentState, CurrentBlock, false)) {

@@ -72,6 +72,9 @@
     "vector": "c",
     "format": "c",
     "locale": "c",
-    "frontend.h": "c"
+    "frontend.h": "c",
+    "cstdlib": "c",
+    "algorithm": "c",
+    "backend.h": "c"
   }
 }

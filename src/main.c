@@ -8,22 +8,6 @@ int main() {
   return 0;
 }
 
-// void game() {
-//   srand(time(NULL));
-//   initialize_ncurses();
-//   GameInfo_t CurrentState = updateCurrentState();
-
-//   do {
-//     userInput(readInput(), true);
-
-//     CurrentState = updateCurrentState();
-
-//     render(CurrentState);
-
-//   } while (CurrentState.field != NULL);
-//   endwin();
-// }
-
 void game() {
   srand(time(NULL));
   initialize_ncurses();
@@ -32,11 +16,9 @@ void game() {
   do {
     userInput(readInput(), true);
     CurrentState = updateCurrentState();
-    if (CurrentState.field == NULL) {
-      break;
-    }
     render(CurrentState);
-  } while (true);
+  } while (CurrentState.pause != STOP);
 
+  free_resourse();
   endwin();
 }

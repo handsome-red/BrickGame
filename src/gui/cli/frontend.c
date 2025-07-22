@@ -57,14 +57,52 @@ UserAction_t readInput() {
 }
 
 void render(GameInfo_t CurrentState) {
+  clear();
+  napms(50);
   if (CurrentState.field != NULL) {
-    render_game_field(CurrentState.field);
-    render_game_status(CurrentState);
+    if (CurrentState.pause == PREVIEW) {
+      draw_common_banner("I LOVE AIGUL <3", true);
+    } else
+
+        if (CurrentState.pause == PAUSE_ON) {
+      draw_common_banner("PAUSED", true);
+    } else {
+      render_game_field(CurrentState.field);
+      render_game_status(CurrentState);
+    }
     refresh();
   }
 }
 
-// void render_game_field(GameInfo_t CurrentState) {
+void draw_common_banner(const char* banner_text, bool color_shift) {
+  (void)color_shift;
+  static bool colors_initialized = false;
+  if (!colors_initialized) {
+    start_color();
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(3, COLOR_GREEN, COLOR_BLACK);
+    init_pair(4, COLOR_BLACK, COLOR_BLACK);
+    colors_initialized = true;
+  }
+  static int frame = 0;
+  frame = (frame < 3) ? frame + 1 : 0;
+
+  for (int row = 0; row < GAME_FIELD_HEIGHT; row++) {
+    for (int col = 0; col < GAME_FIELD_WIDTH; col++) {
+      mvaddch(row, col * 2, ' ' | COLOR_PAIR(4));
+      mvaddch(row, col * 2 + 1, ' ' | COLOR_PAIR(4));
+    }
+  }
+
+  int y = 8;
+  int x = 7;
+
+  attron(A_BOLD | COLOR_PAIR(1 + frame % 3));
+  mvprintw(y, x, "%s", banner_text);
+  attrset(A_NORMAL);
+}
+
 void render_game_field(int** filed) {
   for (int row = 0; row < GAME_FIELD_HEIGHT; row++) {
     for (int col = 0; col < GAME_FIELD_WIDTH; col++) {
@@ -83,15 +121,13 @@ void render_game_status(GameInfo_t CurrentState) {
   const int sidebar_x = GAME_FIELD_WIDTH * 2 * 1.3;
   const int start_y = GAME_FIELD_HEIGHT - 12;
 
-  char buffer[5][32];
+  char buffer[4][32];
   snprintf(buffer[0], sizeof(buffer[0]), "RECORD: %d", CurrentState.high_score);
   snprintf(buffer[1], sizeof(buffer[1]), "LEVEL : %d", CurrentState.level);
   snprintf(buffer[2], sizeof(buffer[2]), "SCORE : %d", CurrentState.score);
-  snprintf(buffer[3], sizeof(buffer[3]), "PAUSE : %s",
-           CurrentState.pause ? "ON " : "OFF");
-  snprintf(buffer[4], sizeof(buffer[4]), "SPEED : %d", CurrentState.speed);
+  snprintf(buffer[3], sizeof(buffer[3]), "SPEED : %d", CurrentState.speed);
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 4; i++) {
     mvaddstr(start_y + (i * 2), sidebar_x, buffer[i]);
   }
 

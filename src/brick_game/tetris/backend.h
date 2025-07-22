@@ -7,6 +7,9 @@
 #include <time.h>
 
 #include "../../common/common.h"
+#define PAUSE_OFF 0
+#define STOP -1
+#define PREVIEW -2
 
 typedef enum { GAME_START, MOVING, SPAWN, ATTACHING, GAME_OVER } FSM;
 
@@ -27,7 +30,7 @@ typedef struct {
   TetrominoState coords;  // Координаты блоков вокруг фигур
 } GameBlock_t;
 
-void destroy_matrix(int** matrix, int size);
+void destroy_matrix(int*** matrix_ptr, int rows);
 int** create_matrix(int rows, int cols);
 void userInput(UserAction_t action, bool hold);
 // GameInfo_t get_game_info(); //
@@ -54,9 +57,11 @@ FSM move_left(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 FSM move_right(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 FSM fall_down(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 
-void roll_figure(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
+void rotate_figure(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 
-int full_line(GameInfo_t* CurrentState);
+int clear_full_lines(GameInfo_t* state);
+bool is_line_full(const int* line, int width);
+void shift_lines_down(GameInfo_t* state, int from_row);
 int count_score(int lines);
 int lvl_up(int score);
 void save_record(int score, int record);
@@ -71,5 +76,8 @@ FSM on_game_over(GameInfo_t* CurrentState);
 FSM on_game_start(GameInfo_t* CurrentState);
 FSM on_game_spawn(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
 FSM on_attaching(GameInfo_t* CurrentState, GameBlock_t* CurrentBlock);
+
+void free_resourse();
+void reset_game_state(GameInfo_t* state);
 
 #endif
