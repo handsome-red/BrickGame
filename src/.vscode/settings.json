@@ -75,6 +75,8 @@
     "frontend.h": "c",
     "cstdlib": "c",
     "algorithm": "c",
-    "backend.h": "c"
+    "backend.h": "c",
+    "backend_test.h": "c",
+    "stdbool.h": "c"
   }
 }

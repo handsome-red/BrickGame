@@ -61,10 +61,8 @@ void render(GameInfo_t CurrentState) {
   napms(50);
   if (CurrentState.field != NULL) {
     if (CurrentState.pause == PREVIEW) {
-      draw_common_banner("I LOVE AIGUL <3", true);
-    } else
-
-        if (CurrentState.pause == PAUSE_ON) {
+      draw_common_banner("START NEW GAME", true);
+    } else if (CurrentState.pause == PAUSE_ON) {
       draw_common_banner("PAUSED", true);
     } else {
       render_game_field(CurrentState.field);
@@ -119,7 +117,7 @@ void render_cell(int row, int col, bool is_filled) {
 
 void render_game_status(GameInfo_t CurrentState) {
   const int sidebar_x = GAME_FIELD_WIDTH * 2 * 1.3;
-  const int start_y = GAME_FIELD_HEIGHT - 12;
+  const int start_y = GAME_FIELD_HEIGHT - 10;
 
   char buffer[4][32];
   snprintf(buffer[0], sizeof(buffer[0]), "RECORD: %d", CurrentState.high_score);

@@ -1,3 +1,7 @@
+/**
+ * @file main.h
+ * @brief Header file for all backend functions
+ */
 #ifndef MAIN_H
 #define MAIN_H
 

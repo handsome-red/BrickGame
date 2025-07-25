@@ -1,0 +1,11 @@
+var searchData=
+[
+  ['fall_5fdown_0',['fall_down',['../backend_8c.html#a03b7f2daf5b66c019a8fe456891750cf',1,'fall_down(GameInfo_t *CurrentState, GameBlock_t *CurrentBlock):&#160;backend.c'],['../backend_8h.html#a03b7f2daf5b66c019a8fe456891750cf',1,'fall_down(GameInfo_t *CurrentState, GameBlock_t *CurrentBlock):&#160;backend.c']]],
+  ['finitestatemachine_1',['FiniteStateMachine',['../backend_8c.html#af67058ee52eeab518485da0d6a7ebf17',1,'FiniteStateMachine(GameInfo_t *CurrentState, GameBlock_t *CurrentBlock):&#160;backend.c'],['../backend_8h.html#af67058ee52eeab518485da0d6a7ebf17',1,'FiniteStateMachine(GameInfo_t *CurrentState, GameBlock_t *CurrentBlock):&#160;backend.c']]],
+  ['foo_5fattaching_2',['foo_attaching',['../backend_8c.html#ae1ad735b3fbd154905a6c7590e1d4de5',1,'foo_attaching(GameInfo_t *state, GameBlock_t *block):&#160;backend.c'],['../backend_8h.html#a37650f1217323cd7e6c6e67d593a1fae',1,'foo_attaching(GameInfo_t *CurrentState, GameBlock_t *CurrentBlock):&#160;backend.c']]],
+  ['free_5fresourse_3',['free_resourse',['../backend_8c.html#a7c9de83cbdb522ad7fe6c0b44af4ec64',1,'free_resourse():&#160;backend.c'],['../backend_8h.html#a7c9de83cbdb522ad7fe6c0b44af4ec64',1,'free_resourse():&#160;backend.c']]],
+  ['free_5ftest_5ffield_4',['free_test_field',['../backend__test_8c.html#a2f0a45dd3572a71898b50bfbd8b98ab9',1,'backend_test.c']]],
+  ['free_5ftest_5fobjects_5',['free_test_objects',['../backend__test_8c.html#a9dcb02212e4c6ba55802bfe4a6a2960d',1,'free_test_objects(GameInfo_t *state, GameBlock_t *block):&#160;backend_test.c'],['../backend__test_8h.html#a9dcb02212e4c6ba55802bfe4a6a2960d',1,'free_test_objects(GameInfo_t *state, GameBlock_t *block):&#160;backend_test.c']]],
+  ['free_5ftest_5fresources_6',['free_test_resources',['../backend__test_8c.html#acf9d0a4ca46a74a6d7d856ddc9183eb1',1,'free_test_resources(GameInfo_t *state, GameBlock_t *block):&#160;backend_test.c'],['../backend__test_8h.html#a1b06a89093ad6ecac6360600d50dbf26',1,'free_test_resources():&#160;backend_test.h']]],
+  ['freecurrentstate_7',['FreeCurrentState',['../backend_8c.html#a194ae974847d0ebd3501ec83528c0563',1,'FreeCurrentState(GameInfo_t **CurrentState):&#160;backend.c'],['../backend_8h.html#a194ae974847d0ebd3501ec83528c0563',1,'FreeCurrentState(GameInfo_t **CurrentState):&#160;backend.c']]]
+];
